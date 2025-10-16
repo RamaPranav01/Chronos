@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+pydantic-settings
+python-dotenv
+# Add other libraries like 'langchain-google-genai', 'playwright', 'neo4j'  

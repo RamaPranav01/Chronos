@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chronos-backend
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./backend:/app  # Live-reloading for code changes
+    env_file:
+      - .env
+    depends_on:
+      - neo4j
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: chronos-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:8000/ws/analyze
+
+  neo4j:
+    image: neo4j:5-community
+    container_name: chronos-db
+    ports:
+      - "7474:7474" # Web UI
+      - "7687:7687" # Bolt port
+    volumes:
+      - chronos_neo4j_data:/data
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD} # Uses password from .env
+
+volumes:
+  chronos_neo4j_data:
