@@ -31,32 +31,48 @@ class ChronosAgent:
             
             all_findings = []
             for i, artifact in enumerate(artifacts):
+                # Generate a stable ID for the artifact node
+                artifact_id = f"artifact_{i}"
+
                 yield AgentStep(step_type=StepType.THOUGHT, payload={"message": f"Analyzing artifact #{i+1}: '{artifact[:80]}...'"})
-                analysis_result = await self.analyzer.analyze_text(artifact) # This is our real Gemini call
+                analysis_result = await self.analyzer.analyze_text(artifact)
                 
-                # --- NEW: Add findings to the Knowledge Graph ---
+                # Add artifact node to memory
+                await self.memory.add_entity(name=artifact_id, entity_type="Artifact")
+                
                 if 'slang_definitions' in analysis_result:
                     for term, definition in analysis_result['slang_definitions'].items():
                         await self.memory.add_entity(name=term, entity_type="Slang")
-                        await self.memory.add_entity(name=artifact, entity_type="Artifact")
-                        await self.memory.add_relationship(source_name=artifact, target_name=term, relationship_type="CONTAINS_SLANG")
+                        await self.memory.add_relationship(source_name=artifact_id, target_name=term, relationship_type="CONTAINS_SLANG")
 
                 all_findings.append({"artifact": artifact, "analysis": analysis_result})
                 yield AgentStep(step_type=StepType.RESULT, payload={"message": f"Analysis of artifact #{i+1} complete.", "data": analysis_result})
 
             yield AgentStep(step_type=StepType.THOUGHT, payload={"message": "All artifacts analyzed. Synthesizing the final report..."})
             
-            # TODO: Add a final Gemini call to synthesize a narrative summary from `all_findings`
-            
+            # --- THIS IS THE NEW PART ---
+            yield AgentStep(step_type=StepType.ACTION, payload={"message": "Querying knowledge graph for visualization..."})
+            nodes_result = await self.memory.query("MATCH (n:Entity) RETURN n")
+            rels_result = await self.memory.query("MATCH (n:Entity)-[r]->(m:Entity) RETURN n.name AS source, m.name AS target, type(r) AS label")
+
+            # Format the data for the frontend visualization
+            graph_nodes = [{"id": node['n']['name'], "label": node['n']['name'], "type": node['n']['type']} for node in nodes_result]
+            graph_edges = [{"source": rel['source'], "target": rel['target'], "label": rel['label']} for rel in rels_result]
+            knowledge_graph_data = {"nodes": graph_nodes, "edges": graph_edges}
+            # ---------------------------
+
+            # We are using a simple summary for now, but the AI synthesizer can be added back here.
+            summary_text = "The agent has completed its analysis. Key findings are listed below."
+
             final_report = {
                 "title": f"Digital Anthropology Report for {self.mission.target_url}",
-                "summary": "The agent has completed its analysis. Key findings are listed below.",
-                "key_findings": all_findings
+                "summary": summary_text,
+                "key_findings": all_findings,
+                "knowledge_graph": knowledge_graph_data  # <-- ATTACH THE GRAPH DATA
             }
             yield AgentStep(step_type=StepType.FINAL_REPORT, payload=final_report)
 
         except Exception as e:
             yield AgentStep(step_type=StepType.ERROR, payload={"message": f"A critical error occurred in the agent: {e}"})
         finally:
-            # Important: Close the database connection
             await self.memory.close()

@@ -27,7 +27,7 @@ services:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:8000/ws/analyze
+      - NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:8001/ws/analyze
 
   neo4j:
     image: neo4j:5-community

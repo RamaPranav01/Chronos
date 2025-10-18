@@ -38,7 +38,9 @@ class KnowledgeGraphTool:
             print(f"Added relationship: {source_name} -[{relationship_type}]-> {target_name}")
 
     async def query(self, cypher_query: str) -> list:
-        """Runs a read-only Cypher query against the graph."""
+        """Runs a read-only Cypher query and returns a list of dictionaries."""
         async with self._driver.session() as session:
             result = await session.run(cypher_query)
-            return [record.data() for record in await result.list()]
+            # The .data() method correctly fetches all records as a list of dicts.
+            records = await result.data()
+            return records

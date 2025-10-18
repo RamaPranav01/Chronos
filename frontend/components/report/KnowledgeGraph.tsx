@@ -10,7 +10,7 @@ interface KnowledgeGraphProps {
   graphData: FinalReportPayload['knowledge_graph'];
 }
 
-export function KnowledgeGraph({ graphData }: KnowledgeGraphProps) {
+export function KnowledgeGraph({ graphData = { nodes: [], edges: [] } }: KnowledgeGraphProps) {
   // Memoize the transformation to prevent re-calculating on every render
   const { nodes, edges } = useMemo(() => {
     const initialNodes: Node[] = graphData.nodes.map((node, i) => ({
